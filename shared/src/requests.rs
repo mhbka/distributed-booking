@@ -42,24 +42,35 @@ pub struct MonitorFacilityRequest {
     seconds_to_monitor: u8
 }
 
-/// The types of requests to the server.
+/// The possible requests to the server.
 pub enum RequestType {
-    Availability,
-    Book,
-    Offset,
-    Monitor
+    Availability(AvailabilityRequest),
+    Book(BookRequest),
+    Offset(OffsetBookingRequest),
+    Monitor(MonitorFacilityRequest)
 }
 
 impl Byteable for RequestType {
-    /// Deserializes from a single `u8`.
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {
             let discriminant = data.remove(0);
             let val = match discriminant {
-                0 => Self::Availability,
-                1 => Self::Book,
-                2 => Self::Offset,
-                3 => Self::Monitor,
+                0 => {
+                    let request = AvailabilityRequest::from_bytes(data)?;
+                    Self::Availability(request)
+                },
+                1 => {
+                    let request = BookRequest::from_bytes(data)?;
+                    Self::Book(request)
+                },
+                2 => {
+                    let request = OffsetBookingRequest::from_bytes(data)?;
+                    Self::Offset(request)
+                },
+                3 => {
+                    let request = MonitorFacilityRequest::from_bytes(data)?;
+                    Self::Monitor(request)
+                },
                 other => Err(format!("Unsupported request type discriminant: {other}"))?
             };
             return Ok(val);
@@ -68,12 +79,27 @@ impl Byteable for RequestType {
     }
 
     fn to_bytes(self) -> Vec<u8> {
-        let val = match self {
-            RequestType::Availability => 0,
-            RequestType::Book => 1,
-            RequestType::Offset => 2,
-            RequestType::Monitor => 3,
-        };
-        vec![val]
+        match self {
+            RequestType::Availability(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 0);
+                request_bytes
+            },
+            RequestType::Book(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 1);
+                request_bytes
+            },
+            RequestType::Offset(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 2);
+                request_bytes
+            },
+            RequestType::Monitor(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 3);
+                request_bytes
+            },
+        }
     }
 }

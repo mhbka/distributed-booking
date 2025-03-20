@@ -11,8 +11,16 @@ pub struct RawResponse {
     pub data: Vec<u8>,
 }
 
-/// Any response from the server (just a string), since the client doesn't any structure anyway.
-#[derive(ByteableDerive)]
-pub struct MessageResponse {
-    message: String
+impl RawResponse {
+    /// Build a simple response from just a string.
+    pub fn from_string(request_id: Uuid, is_error: u8, string: String) -> Self {
+        let length = string.len() as u16;
+        let data = string.bytes().collect();
+        Self {
+            request_id,
+            is_error,
+            length,
+            data    
+        }
+    }
 }

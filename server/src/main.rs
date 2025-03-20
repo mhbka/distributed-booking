@@ -7,16 +7,14 @@ mod facilities;
 mod handler;
 mod duplicates;
 
-const MAX_SIZE: usize = 1000;
+const INIT_SIZE: usize = 1000;
 
 fn main() {
     let socket = UdpSocket::bind("127.0.0.1:34524").unwrap();
     
-    let handler = Handler {};
-    let mut duplicates_cache = DuplicatesCache::new();
-    let mut facilities = Vec::new();
+    let handler = Handler::new();
     
-    let mut recv_buffer = [0; MAX_SIZE];
+    let mut recv_buffer = Vec::with_capacity(INIT_SIZE);
 
     loop {
         match socket
@@ -24,11 +22,7 @@ fn main() {
             .map_err(|err| format!("Error while receiving: {err}"))
         { 
             Ok((size, source_addr)) => {
-                let response = handler.handle_message(
-                    &mut duplicates_cache,
-                    &mut facilities, 
-                    &mut recv_buffer[0..size]
-                );
+                let response = handler.handle_message(&mut recv_buffer);
                 match socket.send_to(response.as_slice(), source_addr) {
                     Ok(ok) => {
 

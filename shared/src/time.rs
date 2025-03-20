@@ -1,9 +1,11 @@
 use std::ops::{Add, Sub};
 
+use derive::ByteableDerive;
+
 use crate::Byteable;
 
 /// Representation of time for a booking.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, ByteableDerive)]
 pub struct Time {
     pub day: Day,
     pub hour: Hour,
@@ -71,37 +73,11 @@ impl Time {
                     Day::Sunday => Day::Monday,
                 };
             }
-
-            // Update the Time
+            
             self.minute = new_minute;
             self.hour = new_hour;
             self.day = new_day;
         }
-    }
-}
-
-impl Byteable for Time {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
-        let day = Day::from_bytes(data)?;
-        let hour = Hour::from_bytes(data)?;
-        let minute = Minute::from_bytes(data)?;
-        Ok(
-            Self {
-                day,
-                hour,
-                minute
-            }
-        )
-    }
-
-    fn to_bytes(self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        bytes.extend(self.day.to_bytes());
-        bytes.extend(self.hour.to_bytes());
-        bytes.extend(self.minute.to_bytes());
-
-        bytes
     }
 }
 

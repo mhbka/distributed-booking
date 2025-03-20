@@ -15,13 +15,13 @@ impl DuplicatesCache {
     }
 
     /// Returns the last response for the given request ID.
-    pub fn check(&mut self, request_id: Uuid) -> Option<Vec<u8>> {
-        self.duplicates.get(&request_id).cloned()
+    pub fn check(&mut self, request_id: &Uuid) -> Option<Vec<u8>> {
+        self.duplicates.get(request_id).cloned()
     }
 
     /// Inserts a response under the request ID.
-    pub fn insert_entry(&mut self, request_id: Uuid, response: Vec<u8>) {
-        self.duplicates.insert(request_id, response);
+    pub fn insert_entry(&mut self, request_id: &Uuid, response: &Vec<u8>) {
+        self.duplicates.insert(request_id.clone(), response.clone());
     }
 }
 

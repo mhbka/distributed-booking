@@ -6,14 +6,17 @@ pub mod time;
 
 /// Trait for things that are serializable to/from bytes.
 /// 
-/// ## Note
-/// For structs, the conversion must be in top-to-bottom order of struct fields,
+/// ## Implementation
+/// - For structs, the conversion must be in top-to-bottom order of struct fields,
 /// where each struct field is also `Byteable`.
 /// 
-/// For variable-length fields, there should be a (byte) length field, followed by
-/// the actual data.
+/// - For variable-length fields, the first byte (or 2) should be a `u8`/`u16` for the data's bytelength, 
+/// followed by the actual data.
 /// 
-/// For static-sized fields, it should just be the bytes.
+/// - For enums, the the first byte should be a discriminant for the actual variant, 
+/// followed by the actual data. 
+/// 
+/// - For static-sized fields, it should just be the bytes.
 /// 
 /// ## Derive
 /// If all the fields are `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
