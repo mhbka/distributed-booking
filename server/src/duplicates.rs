@@ -3,8 +3,10 @@ use std::{collections::HashMap, net::SocketAddr};
 use uuid::Uuid;
 
 /// Caches responses for requests sent to the server.
+/// 
+/// Each `SocketAddr` only holds the latest request ID and response data.
 pub struct DuplicatesCache {
-    duplicates: HashMap<Uuid, Vec<u8>>
+    duplicates: HashMap<SocketAddr, (Uuid, Vec<u8>)>
 }
 
 impl DuplicatesCache {
@@ -14,14 +16,25 @@ impl DuplicatesCache {
         }
     }
 
-    /// Returns the last response for the given request ID.
-    pub fn check(&mut self, request_id: &Uuid) -> Option<Vec<u8>> {
-        self.duplicates.get(request_id).cloned()
+    /// Returns the last response's data for an address.
+    /// 
+    /// Returns `None` if the request ID doesn't match.
+    pub fn check(&mut self, addr: &SocketAddr, request_id: &Uuid) -> Option<Vec<u8>> {
+        match self.duplicates.get(addr) {
+            Some((latest_id, data)) => {
+                if latest_id == request_id {
+                    return Some(data.clone())
+                } else {
+                    return None;
+                }
+            },
+            None => None
+        }
     }
 
     /// Inserts a response under the request ID.
-    pub fn insert_entry(&mut self, request_id: &Uuid, response: &Vec<u8>) {
-        self.duplicates.insert(request_id.clone(), response.clone());
+    pub fn insert_entry(&mut self, addr: &SocketAddr, request_id: &Uuid, response: &Vec<u8>) {
+        self.duplicates.insert(addr.clone(), (request_id.clone(), response.clone()));
     }
 }
 

@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 derive = { path = "../derive" }
+strum = { version = "0.27.1", features = ["derive"] }
 uuid = "1.16.0"

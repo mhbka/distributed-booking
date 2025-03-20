@@ -1,7 +1,6 @@
-use std::ops::{Add, Sub};
-
+use std::{fmt::Display, ops::{Add, Sub}};
 use derive::ByteableDerive;
-
+use strum::{Display, EnumIter};
 use crate::Byteable;
 
 /// Representation of time for a booking.
@@ -73,7 +72,7 @@ impl Time {
                     Day::Sunday => Day::Monday,
                 };
             }
-            
+
             self.minute = new_minute;
             self.hour = new_hour;
             self.day = new_day;
@@ -81,7 +80,14 @@ impl Time {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+impl Display for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}, {}:{}", self.day, self.hour.0, self.minute.0)
+    }
+}
+
+/// A day of the week.
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Display, EnumIter)]
 pub enum Day {
     Monday,
     Tuesday,
@@ -135,7 +141,7 @@ impl Byteable for Day {
 }
 
 /// A u8 between 0 and 24.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Hour(u8);
 
 impl Hour {
@@ -177,7 +183,7 @@ impl Sub<Hour> for Hour {
 }
 
 /// A u8 between 0 and 60.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Minute(u8);
 
 impl Minute {

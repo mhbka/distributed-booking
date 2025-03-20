@@ -7,39 +7,37 @@ use derive::ByteableDerive;
 pub struct RawRequest {
     pub request_id: Uuid,
     pub request_type: RequestType,
-    pub length: u16,
-    pub data: Vec<u8>,
 }
 
 /// For requesting facility availability.
 #[derive(ByteableDerive)]
 pub struct AvailabilityRequest {
-    facility_name: String,
-    days: Vec<Day>
+    pub facility_name: String,
+    pub days: Vec<Day>
 }
 
 /// For booking a facility.
 #[derive(ByteableDerive)]
 pub struct BookRequest {
-    facility_name: String,
-    start_time: Time,
-    end_time: Time
+    pub facility_name: String,
+    pub start_time: Time,
+    pub end_time: Time
 }
 
 /// For modifying a booking.
 #[derive(ByteableDerive)]
 pub struct OffsetBookingRequest {
-    booking_id: Uuid,
-    offset_hours: Hour,
-    offset_min: Minute,
-    negative: bool
+    pub booking_id: Uuid,
+    pub offset_hours: Hour,
+    pub offset_min: Minute,
+    pub negative: bool
 }
 
 /// For registering a monitor callback.
 #[derive(ByteableDerive)]
 pub struct MonitorFacilityRequest {
-    facility_name: String,
-    seconds_to_monitor: u8
+    pub facility_name: String,
+    pub seconds_to_monitor: u8
 }
 
 /// The possible requests to the server.
@@ -51,7 +49,7 @@ pub enum RequestType {
 }
 
 impl Byteable for RequestType {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 1 {
             let discriminant = data.remove(0);
             let val = match discriminant {

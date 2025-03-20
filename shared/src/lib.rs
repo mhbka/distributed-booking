@@ -20,15 +20,15 @@ pub mod time;
 /// 
 /// ## Derive
 /// If all the fields are `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
-pub trait Byteable {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized;
+pub trait Byteable where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String>;
 
     fn to_bytes(self) -> Vec<u8>;
 }
 
 impl Byteable for bool {
     /// From a single `u8` where `0` is `false` and everything else is `true`.
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 1 {
             return Ok(data.remove(0) == 0);
         }
@@ -44,7 +44,7 @@ impl Byteable for bool {
 }
 
 impl Byteable for u8 {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 1 {
             return Ok(data.remove(0));
         }
@@ -57,7 +57,7 @@ impl Byteable for u8 {
 }
 
 impl Byteable for u16 {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 2 {
             let bytes = data
                     .drain(..2)
@@ -77,7 +77,7 @@ impl Byteable for u16 {
 }
 
 impl Byteable for Uuid {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 16 {
             let uuid_bytes = data
                 .drain(..16)
@@ -97,54 +97,57 @@ impl Byteable for Uuid {
 }
 
 impl Byteable for String {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
-        if data.len() >= 1 {
-            let length = data.remove(0);
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
+        let length = u16::from_bytes(data)?;
 
-            if data.len() >= length as usize {
-                let bytes = data
-                    .drain(..length as usize)
-                    .collect::<Vec<_>>();
+        if data.len() >= length as usize {
+            let bytes = data
+                .drain(..length as usize)
+                .collect::<Vec<_>>();
 
-                return Ok(
-                    String::from_utf8(bytes)
-                        .map_err(|err| format!("Unable to parse bytes to string: {err}"))?
-                )
-            }
+            return Ok(
+                String::from_utf8(bytes)
+                    .map_err(|err| format!("Unable to parse bytes to string: {err}"))?
+            )
         }
+
         Err(format!("Not enough bytes (len: {})", data.len()))
     }
 
     fn to_bytes(self) -> Vec<u8> {
-        self.bytes().collect()
+        let mut bytes = (self.len() as u16).to_bytes();
+        bytes.extend(self.bytes());
+        bytes
     }
 }
 
 impl<T: Byteable> Byteable for Vec<T> {
-    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
-        if data.len() >= 1 {
-            let length = data.remove(0);
+    fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
+        let length = u16::from_bytes(data)?;
 
-            if data.len() >= length as usize {
-                let mut bytes = data
-                    .drain(..length as usize)
-                    .collect::<Vec<_>>();
+        if data.len() >= length as usize {
+            let mut bytes = data
+                .drain(..length as usize)
+                .collect::<Vec<_>>();
 
-                let mut items = Vec::with_capacity(length as usize);
-                while bytes.len() > 0 {
-                    let item = T::from_bytes(&mut bytes)?;
-                    items.push(item);
-                }
-
-                return Ok(items)
+            let mut items = Vec::new();
+            while bytes.len() > 0 {
+                let item = T::from_bytes(&mut bytes)?;
+                items.push(item);
             }
+
+            return Ok(items)
         }
         Err(format!("Not enough bytes (len: {})", data.len()))
     }
 
     fn to_bytes(self) -> Vec<u8> {
-        self.into_iter()
+        let mut bytes: Vec<u8> = self
+            .into_iter()
             .flat_map(|t| t.to_bytes())
-            .collect()
+            .collect();
+        let length = bytes.len() as u16;
+        bytes.extend(length.to_bytes());
+        bytes
     }
 }
