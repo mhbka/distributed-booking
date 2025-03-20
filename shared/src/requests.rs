@@ -1,5 +1,5 @@
 use uuid::Uuid;
-use crate::{time::{Day, Hour, Minute, Time}, Byteable, SubByteable};
+use crate::{time::{Day, Hour, Minute, Time}, Byteable};
 use derive::ByteableDerive;
 
 /// Structure of a raw request to the server.
@@ -50,7 +50,7 @@ pub enum RequestType {
     Monitor
 }
 
-impl SubByteable for RequestType {
+impl Byteable for RequestType {
     /// Deserializes from a single `u8`.
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {

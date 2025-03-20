@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-/// Derives `Byteable` for a struct whose fields are all `SubByteable`.
+/// Derives `Byteable` for a struct whose fields are all `Byteable`.
 #[proc_macro_derive(ByteableDerive)]
 pub fn derive_byteable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -18,7 +18,7 @@ pub fn derive_byteable(input: TokenStream) -> TokenStream {
 
     let from_bytes_fields = field_names.iter().map(|name| {
         quote! {
-            let #name = SubByteable::from_bytes(&mut data)?;
+            let #name = Byteable::from_bytes(data)?;
         }
     });
 
@@ -30,7 +30,7 @@ pub fn derive_byteable(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         impl Byteable for #name {
-            fn from_bytes(mut data: Vec<u8>) -> Result<Self, String> {
+            fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
                 #(#from_bytes_fields)*
 
                 Ok(Self {

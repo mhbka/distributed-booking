@@ -1,6 +1,6 @@
 use std::ops::{Add, Sub};
 
-use crate::SubByteable;
+use crate::Byteable;
 
 /// Representation of time for a booking.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
@@ -80,7 +80,7 @@ impl Time {
     }
 }
 
-impl SubByteable for Time {
+impl Byteable for Time {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         let day = Day::from_bytes(data)?;
         let hour = Hour::from_bytes(data)?;
@@ -147,7 +147,7 @@ impl Day {
     }
 }
 
-impl SubByteable for Day {
+impl Byteable for Day {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         let val = u8::from_bytes(data)?;
         Ok(Day::from_u8(val)?)
@@ -173,7 +173,7 @@ impl Hour {
     }
 }
 
-impl SubByteable for Hour {
+impl Byteable for Hour {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         let val = u8::from_bytes(data)?;
         Ok(Self(val))
@@ -215,7 +215,7 @@ impl Minute {
     }
 }
 
-impl SubByteable for Minute {
+impl Byteable for Minute {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         let val = u8::from_bytes(data)?;
         Ok(Self(val))

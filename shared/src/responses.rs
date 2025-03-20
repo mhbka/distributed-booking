@@ -1,5 +1,5 @@
 use derive::ByteableDerive;
-use crate::{Byteable, SubByteable};
+use crate::Byteable;
 use uuid::Uuid;
 
 /// Structure of a raw response from the server.

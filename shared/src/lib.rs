@@ -4,41 +4,26 @@ pub mod requests;
 pub mod responses;
 pub mod time;
 
-/// Trait for structs that are serializable to/from bytes.
+/// Trait for things that are serializable to/from bytes.
 /// 
 /// ## Note
-/// The conversion must be in top-to-bottom order of struct fields,
-/// where each struct field is `SubByteable`.
+/// For structs, the conversion must be in top-to-bottom order of struct fields,
+/// where each struct field is also `Byteable`.
+/// 
+/// For variable-length fields, there should be a (byte) length field, followed by
+/// the actual data.
+/// 
+/// For static-sized fields, it should just be the bytes.
 /// 
 /// ## Derive
-/// If all the fields are `SubByteable`, you can use `ByteableDerive` to quickly get an implementation.
+/// If all the fields are `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
 pub trait Byteable {
-    fn from_bytes(data: Vec<u8>) -> Result<Self, String> where Self: Sized;
-
-    fn to_bytes(self) -> Vec<u8>;
-}
-
-/// Trait for fields of a struct that are serializable to/from bytes.
-/// 
-/// ## Implementation
-/// For a struct, it (like in `Byteable`) should be serialized top-to-bottom for its fields,
-/// where each field is also `SubByteable`.
-/// 
-/// For a variable-length field, the structure should be 1 `u8` for the length,
-/// and the rest being the data.
-/// 
-/// For a static-sized field, the structure should just be the bytes themselves.
-/// 
-/// ## Note on size
-/// The maximum size in bytes of **anything** `SubByteable` is 255, or `u8::MAX`.
-/// This is quite small, so be careful!
-pub trait SubByteable {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized;
 
     fn to_bytes(self) -> Vec<u8>;
 }
 
-impl SubByteable for bool {
+impl Byteable for bool {
     /// From a single `u8` where `0` is `false` and everything else is `true`.
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {
@@ -55,7 +40,7 @@ impl SubByteable for bool {
     }
 }
 
-impl SubByteable for u8 {
+impl Byteable for u8 {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {
             return Ok(data.remove(0));
@@ -68,7 +53,7 @@ impl SubByteable for u8 {
     }
 }
 
-impl SubByteable for u16 {
+impl Byteable for u16 {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 2 {
             let bytes = data
@@ -88,7 +73,7 @@ impl SubByteable for u16 {
     }
 }
 
-impl SubByteable for Uuid {
+impl Byteable for Uuid {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 16 {
             let uuid_bytes = data
@@ -108,7 +93,7 @@ impl SubByteable for Uuid {
     }
 }
 
-impl SubByteable for String {
+impl Byteable for String {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {
             let length = data.remove(0);
@@ -132,7 +117,7 @@ impl SubByteable for String {
     }
 }
 
-impl<T: SubByteable> SubByteable for Vec<T> {
+impl<T: Byteable> Byteable for Vec<T> {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         if data.len() >= 1 {
             let length = data.remove(0);
