@@ -1,13 +1,12 @@
-use std::{net::{SocketAddr, UdpSocket}, sync::{Arc, Mutex}, thread::{spawn, JoinHandle}};
-use chrono::{DateTime, Duration, TimeZone, Utc};
+use std::net::SocketAddr;
+use chrono::{DateTime, Duration, Utc};
 use shared::{requests::{AvailabilityRequest, BookRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType}, responses::RawResponse, time::Day, Byteable};
 use uuid::Uuid;
-use crate::{duplicates::DuplicatesCache, facilities::{Booking, Facility}, socket::SenderReceiver};
+use crate::{facilities::{Booking, Facility}, socket::SenderReceiver};
 
 /// Handles messages.
 pub struct Handler {
     sender_receiver: SenderReceiver,
-    duplicates_cache: DuplicatesCache,
     facilities: Vec<Facility>,
     monitoring_addresses: Vec<(SocketAddr, String, DateTime<Utc>)>, // note: String is the facility name, DateTime is the expiry date
 }
@@ -15,12 +14,16 @@ pub struct Handler {
 impl Handler {
     /// Instantiate the handler.
     pub fn new(sender_receiver: SenderReceiver) -> Self {
-        let duplicates_cache = DuplicatesCache::new();
-        let facilities = Vec::new();
+        let facilities = vec![ // initial facilities
+            Facility::new("MR1".into()),
+            Facility::new("MR2".into()),
+            Facility::new("MR3".into()),
+            Facility::new("MR4".into()),
+            Facility::new("MR5".into()),
+        ];
         let monitoring_addresses = Vec::new();
         Self {
             sender_receiver,
-            duplicates_cache,
             facilities,
             monitoring_addresses,
         }
@@ -29,28 +32,24 @@ impl Handler {
     /// Infinitely receives and handles messages.
     pub fn run(&mut self) {
         loop {
-            match self.sender_receiver
-                .receive()
-            { 
+            match self.sender_receiver.receive() { 
                 Ok((req, source_addr)) => {
                     let response = self.handle_message(req, &source_addr);
                     match response {
                         Ok(res) => {
                             match self.sender_receiver.send(&res, &source_addr) {
                                 Ok(ok) => {
-                                    println!("Successfully sent response to {source_addr}\n Data: {res:#?}");
+                                    tracing::debug!("Successfully sent response to {} (length: {})", source_addr, res.len());
                                 },
                                 Err(err) => {
-                                    println!("Error sending response: {err}\n Data: {res:#?}");
+                                    tracing::warn!("Error sending response to {}: {} (length: {})", source_addr, err, res.len());
                                 }
                             }
                         },
-                        Err(err) => println!("{err}")
+                        Err(err) => tracing::warn!("Error while handling message: {err}")
                     }
                 },
-                Err(err) => {
-                    println!("Error receiving message: {err}");
-                }
+                Err(err) => tracing::warn!("Error receiving message: {err}")
             }
         }
     }
@@ -58,55 +57,54 @@ impl Handler {
     /// Handles a message, returning the response as bytes.
     pub fn handle_message(&mut self, req: RawRequest, source_addr: &SocketAddr) -> Result<Vec<u8>, String> 
     {
-        match self.duplicates_cache.check(source_addr, &req.request_id) {
-            Some(res) => Ok(res),
-            None => {
-                let result = match req.request_type {
-                    RequestType::Availability(req) => {
-                        self.handle_availability_request(req)
-                    },
-                    RequestType::Book(req) => {
-                        self.handle_booking_request(req)
-                    },
-                    RequestType::Offset(req) => {
-                        self.handle_offset_request(req)
-                    },
-                    RequestType::Monitor(req) => {
-                        self.handle_monitor_request(req, source_addr)
-                    },
+        let result = match req.request_type {
+            RequestType::Availability(req) => {
+                self.handle_availability_request(req)
+            },
+            RequestType::Book(req) => {
+                self.handle_booking_request(req)
+            },
+            RequestType::Offset(req) => {
+                self.handle_offset_request(req)
+            },
+            RequestType::Monitor(req) => {
+                self.handle_monitor_request(req, source_addr)
+            },
+        };
+        match result {
+            Ok(res) => {
+                let response = RawResponse {
+                    request_id: req.request_id,
+                    is_error: false,
+                    message: res
                 };
-                match result {
-                    Ok(res) => {
-                        let response = RawResponse {
-                            request_id: req.request_id,
-                            is_error: false,
-                            message: res
-                        };
-                        return Ok(response.to_bytes());
-                    },
-                    Err(res) => {
-                        let response = RawResponse {
-                            request_id: req.request_id,
-                            is_error: true,
-                            message: res
-                        };
-                        return Ok(response.to_bytes());
-                    }
-                }
+                return Ok(response.to_bytes());
+            },
+            Err(res) => {
+                let response = RawResponse {
+                    request_id: req.request_id,
+                    is_error: true,
+                    message: res
+                };
+                return Ok(response.to_bytes());
             }
         }
     }
 
-    fn handle_availability_request(&self, req: AvailabilityRequest) -> Result<String, String> {
+    fn handle_availability_request(&self, mut req: AvailabilityRequest) -> Result<String, String> {
         match self.facilities
             .iter()
             .find(|&facility| facility.name == req.facility_name)
         {
             Some(facility) => {
+                tracing::trace!("check this: {:?}", req.days);
+                req.days.sort();
+                req.days.dedup(); // in case >1 of the same day
                 let availabilities = req.days
                     .into_iter()
-                    .map(|day| format!("{day}:\n {}\n", facility.get_availabilities(day)))
+                    .map(|day| format!("-----\n {}\n -----\n", facility.get_availabilities(day)))
                     .collect();
+                tracing::trace!("{availabilities}");
                 return Ok(availabilities);
             },
             None => {

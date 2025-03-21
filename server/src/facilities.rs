@@ -1,4 +1,3 @@
-use std::ops::{Add, Sub};
 use shared::time::{Day, Hour, Minute, Time};
 use uuid::Uuid;
 
@@ -114,7 +113,7 @@ impl Facility {
         let mut result = String::new();
         
         for (i, (start, end)) in open_slots.iter().enumerate() {
-            result.push_str(&format!("{}. {} - {}\n", i + 1, start, end));
+            result.push_str(&format!("{}. {} - {}", i + 1, start, end));
         }
         
         result

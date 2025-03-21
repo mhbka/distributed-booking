@@ -19,7 +19,7 @@ pub mod time;
 /// - For static-sized fields, it should just be the bytes.
 /// 
 /// ## Derive
-/// If all the fields are `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
+/// If a struct's fields are all `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
 pub trait Byteable where Self: Sized {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String>;
 
@@ -142,12 +142,12 @@ impl<T: Byteable> Byteable for Vec<T> {
     }
 
     fn to_bytes(self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = self
+        let data_bytes: Vec<u8> = self
             .into_iter()
             .flat_map(|t| t.to_bytes())
             .collect();
-        let length = bytes.len() as u16;
-        bytes.extend(length.to_bytes());
+        let mut bytes = (data_bytes.len() as u16).to_bytes();
+        bytes.extend(data_bytes);
         bytes
     }
 }
