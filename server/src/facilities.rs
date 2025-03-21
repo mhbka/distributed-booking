@@ -51,11 +51,11 @@ impl Facility {
         Ok(())
     }
 
-    /// Returns if the booking exists.
-    pub fn check_booking_id(&mut self, booking_id: &BookingId) -> bool {
+    /// Returns the booking details of a given booking ID, if it exists.
+    pub fn get_booking_details(&self, booking_id: &BookingId) -> Option<&(Uuid, Booking)> {
         self.bookings
             .iter()
-            .any(|(id, _)| id == booking_id)
+            .find(|(id, _)| id == booking_id)
     }
 
     /// Remove the booking given by its ID.
@@ -122,7 +122,8 @@ impl Facility {
 
     /// Offset the booking by given hours and minutes.
     /// 
-    /// Errors if the booking ID doesn't exist, or the offset'd booking overlaps with current ones.
+    /// Errors if the booking ID doesn't exist, the offset'd booking overlaps with current ones, 
+    /// or the offset pushes the booking into a different day.
     pub fn offset_booking(
         &mut self, 
         booking_id: BookingId, 
@@ -136,7 +137,12 @@ impl Facility {
         let mut offset_booking = booking.clone();
         offset_booking.offset(hours, minutes, negative);
 
-        if let Err(err) = self.add_booking_with_id(booking_id, offset_booking) {
+        if offset_booking.start_time.day != booking.start_time.day
+        || offset_booking.end_time.day != booking.start_time.day {
+            self.add_booking_with_id(booking_id, booking)?;
+            return Err("Offset pushes the booking into a different day; not allowed".to_string());
+        }
+        else if let Err(err) = self.add_booking_with_id(booking_id, offset_booking) {
             self.add_booking_with_id(booking_id, booking)?;
             return Err(err);
         }
@@ -170,6 +176,11 @@ impl Booking {
         Ok(
             Self { start_time, end_time }
         )
+    }
+
+    /// Returns the start and end times of the booking.
+    pub fn time(&self) -> (&Time, &Time) {
+        (&self.start_time, &self.end_time)
     }
 
     /// Returns if the 2 bookings overlap.

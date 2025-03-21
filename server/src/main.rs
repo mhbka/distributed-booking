@@ -4,6 +4,7 @@ use handler::Handler;
 mod facilities;
 mod handler;
 mod duplicates;
+mod socket;
 
 const INIT_SIZE: usize = 1000;
 
