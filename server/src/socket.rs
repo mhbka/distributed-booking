@@ -42,8 +42,11 @@ impl SenderReceiver {
     }
 
     /// Sends the response to the given address.
-    pub fn send(&mut self, response: &Vec<u8>, addr: &SocketAddr) {
-        self.socket.send_to(response, addr);
-        // TODO: ^ this may error, retry/timeout?
+    pub fn send(&mut self, response: &Vec<u8>, addr: &SocketAddr) -> Result<(), String> {
+        self.socket
+            .send_to(response, addr)
+            .map(|bytes| ())
+            .map_err(|err| format!("Unable to send UDP message: {err}"))
+        // TODO: retry/timeout here
     }
 }

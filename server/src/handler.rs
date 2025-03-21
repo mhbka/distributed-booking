@@ -13,6 +13,7 @@ pub struct Handler {
 }
 
 impl Handler {
+    /// Instantiate the handler.
     pub fn new(sender_receiver: SenderReceiver) -> Self {
         let duplicates_cache = DuplicatesCache::new();
         let facilities = Vec::new();
@@ -25,51 +26,73 @@ impl Handler {
         }
     }
 
-    /// Handles a message, returning the response as bytes.
-    pub fn handle_message(&mut self, data: &mut Vec<u8>, source_addr: &SocketAddr) -> Result<Vec<u8>, String> 
-    {
-        match RawRequest::from_bytes(data) {
-            Ok(req) => {
-                match self.duplicates_cache.check(source_addr, &req.request_id) {
-                    Some(res) => Ok(res),
-                    None => {
-                        let result = match req.request_type {
-                            RequestType::Availability(req) => {
-                                self.handle_availability_request(req)
-                            },
-                            RequestType::Book(req) => {
-                                self.handle_booking_request(req)
-                            },
-                            RequestType::Offset(req) => {
-                                self.handle_offset_request(req)
-                            },
-                            RequestType::Monitor(req) => {
-                                self.handle_monitor_request(req, source_addr)
-                            },
-                        };
-                        match result {
-                            Ok(res) => {
-                                let response = RawResponse {
-                                    request_id: req.request_id,
-                                    is_error: false,
-                                    message: res
-                                };
-                                return Ok(response.to_bytes());
-                            },
-                            Err(res) => {
-                                let response = RawResponse {
-                                    request_id: req.request_id,
-                                    is_error: true,
-                                    message: res
-                                };
-                                return Ok(response.to_bytes());
+    /// Infinitely receives and handles messages.
+    pub fn run(&mut self) {
+        loop {
+            match self.sender_receiver
+                .receive()
+            { 
+                Ok((req, source_addr)) => {
+                    let response = self.handle_message(req, &source_addr);
+                    match response {
+                        Ok(res) => {
+                            match self.sender_receiver.send(&res, &source_addr) {
+                                Ok(ok) => {
+                                    println!("Successfully sent response to {source_addr}\n Data: {res:#?}");
+                                },
+                                Err(err) => {
+                                    println!("Error sending response: {err}\n Data: {res:#?}");
+                                }
                             }
-                        }
+                        },
+                        Err(err) => println!("{err}")
+                    }
+                },
+                Err(err) => {
+                    println!("Error receiving message: {err}");
+                }
+            }
+        }
+    }
+
+    /// Handles a message, returning the response as bytes.
+    pub fn handle_message(&mut self, req: RawRequest, source_addr: &SocketAddr) -> Result<Vec<u8>, String> 
+    {
+        match self.duplicates_cache.check(source_addr, &req.request_id) {
+            Some(res) => Ok(res),
+            None => {
+                let result = match req.request_type {
+                    RequestType::Availability(req) => {
+                        self.handle_availability_request(req)
+                    },
+                    RequestType::Book(req) => {
+                        self.handle_booking_request(req)
+                    },
+                    RequestType::Offset(req) => {
+                        self.handle_offset_request(req)
+                    },
+                    RequestType::Monitor(req) => {
+                        self.handle_monitor_request(req, source_addr)
+                    },
+                };
+                match result {
+                    Ok(res) => {
+                        let response = RawResponse {
+                            request_id: req.request_id,
+                            is_error: false,
+                            message: res
+                        };
+                        return Ok(response.to_bytes());
+                    },
+                    Err(res) => {
+                        let response = RawResponse {
+                            request_id: req.request_id,
+                            is_error: true,
+                            message: res
+                        };
+                        return Ok(response.to_bytes());
                     }
                 }
-            },
-            Err(err) => {
-                return Err(format!("Error deserializing message: {err}"));
             }
         }
     }
