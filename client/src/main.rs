@@ -19,8 +19,8 @@ struct Args {
     /// The address of the server
     #[arg(short, long, default_value_t = String::from("127.0.0.1:34524"))]
     server_addr: String,
-    /// Whether to enable retries
-    #[arg(short, long, default_value_t = true)]
+    /// Whether to enable retries (DEFAULTS TO FALSE)
+    #[arg(short, long)]
     use_reliability: bool,
     /// The proportion of packets to duplicate (only if retries are enabled)
     #[arg(short, long, default_value_t = 0.0)]

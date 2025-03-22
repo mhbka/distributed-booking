@@ -50,7 +50,7 @@ impl SenderReceiver {
             if self.use_reliability {
                 match self.log.check(&request.request_id) {
                     Some(response) => {
-                        tracing::debug!("Found logged response for {}, request ID: {}", source_addr, request.request_id);
+                        tracing::debug!("Found logged response for {}, request ID: {}; returning cached response", source_addr, request.request_id);
                         if let Err(err) = self.socket.send_to(&response, source_addr) {
                             tracing::warn!("Unable to send UDP message for logged response: {err}");
                         };

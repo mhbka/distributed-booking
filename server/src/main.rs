@@ -16,8 +16,8 @@ struct Args {
     /// The address to bind to
     #[arg(short, long, default_value_t = String::from("127.0.0.1:34524"))]
     addr: String,
-    /// Whether to enable response caching
-    #[arg(short, long, default_value_t = true)]
+    /// Whether to enable response caching (DEFAULTS TO FALSE)
+    #[arg(short, long)]
     use_reliability: bool,
     /// The proportion of packets to intentionally drop
     #[arg(short, long, default_value_t = 0.0)]
