@@ -21,7 +21,10 @@ struct Args {
     server_addr: String,
     /// Whether to enable retries
     #[arg(short, long, default_value_t = true)]
-    use_reliability: bool
+    use_reliability: bool,
+    /// The proportion of packets to duplicate (only if retries are enabled)
+    #[arg(short, long, default_value_t = 0.0)]
+    duplicate_packet_rate: f64
 }
 
 fn main() {
@@ -32,7 +35,7 @@ fn main() {
     println!("======================");
 
     let socket = UdpSocket::bind(args.addr).unwrap();
-    let mut sender_receiver = SenderReceiver::new(socket, args.use_reliability);
+    let mut sender_receiver = SenderReceiver::new(socket, args.use_reliability, args.duplicate_packet_rate);
 
     loop {  
         let request = get_user_request();

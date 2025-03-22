@@ -18,7 +18,10 @@ struct Args {
     addr: String,
     /// Whether to enable response caching
     #[arg(short, long, default_value_t = true)]
-    use_reliability: bool
+    use_reliability: bool,
+    /// The proportion of packets to intentionally drop
+    #[arg(short, long, default_value_t = 0.0)]
+    packet_drop_rate: f64,
 }
 
 fn main() {
@@ -31,7 +34,7 @@ fn main() {
     tracing::info!("Server arguments: {args:?}");
 
     let socket = UdpSocket::bind(&args.addr).unwrap();
-    let sender_receiver = SenderReceiver::new(socket, args.use_reliability);
+    let sender_receiver = SenderReceiver::new(socket, args.use_reliability, args.packet_drop_rate);
     let mut handler = Handler::new(sender_receiver);
 
     handler.run();

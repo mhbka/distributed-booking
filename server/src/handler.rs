@@ -96,7 +96,7 @@ impl Handler {
         Ok(response)
     }
 
-    /// 
+    /// Handles request for availabilities.
     fn handle_availability_request(&self, mut req: AvailabilityRequest) -> Result<String, String> {
         match self.facilities
             .iter()
@@ -109,7 +109,6 @@ impl Handler {
                     .into_iter()
                     .map(|day| format!("-----\n {}\n -----\n", facility.get_availabilities(day)))
                     .collect();
-                tracing::trace!("{availabilities}");
                 return Ok(availabilities);
             },
             None => {
@@ -120,7 +119,7 @@ impl Handler {
 
     /// Attempts to add a new booking.
     /// 
-    /// If successful, also sends a message to monitoring addresses for updated availability on the booked day.
+    /// If successful, also sends a message to monitoring addresses for updated availability on the affected day.
     fn handle_booking_request(&mut self, req: BookRequest) -> Result<String, String> {
         match self.facilities
             .iter_mut()
@@ -143,7 +142,7 @@ impl Handler {
 
     /// Attempts to offset a booking.
     /// 
-    /// If successful, also sends a message to monitoring addresses for updated availability on the offsetted day.
+    /// If successful, also sends a message to monitoring addresses for updated availability on the affected day.
     fn handle_offset_request(&mut self, req: OffsetBookingRequest) -> Result<String, String> {
         for facility in &mut self.facilities {
             if let Some(&(ref id, ref booking)) = facility.get_booking_details(&req.booking_id) {
@@ -164,7 +163,7 @@ impl Handler {
 
     /// Attempts to extend a booking.
     /// 
-    /// If successful, also sends a message to monitoring addresses for updated availability on the offsetted day.
+    /// If successful, also sends a message to monitoring addresses for updated availability on the affected day.
     fn handle_extend_request(&mut self, req: ExtendBookingRequest) -> Result<String, String> {
         for facility in &mut self.facilities {
             if let Some((_, booking)) = facility.get_booking_details(&req.booking_id) {
@@ -178,7 +177,7 @@ impl Handler {
                 )?;
 
                 self.send_monitor_message(&facility_name, booking_day);
-                return Ok(format!("Facility {facility_name} successfully offsetted"));
+                return Ok(format!("Facility {facility_name} successfully extended"));
             }
         }
         Err(format!("No booking ID {} found in any facility", req.booking_id))
@@ -186,7 +185,7 @@ impl Handler {
 
     /// Attempts to cancel a booking.
     /// 
-    /// If successful, also sends a message to monitoring addresses for updated availability on the cancelled day.
+    /// If successful, also sends a message to monitoring addresses for updated availability on the affected day.
     fn handle_cancel_request(&mut self, req: CancelBookingRequest) -> Result<String, String> {
         for facility in &mut self.facilities {
             if let Some((_, booking)) = facility.get_booking_details(&req.booking_id) {

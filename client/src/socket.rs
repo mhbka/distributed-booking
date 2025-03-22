@@ -1,25 +1,30 @@
 use std::{io::ErrorKind, net::UdpSocket, thread::sleep, time::{Duration, SystemTime}};
+use rand::{rngs::ThreadRng, Rng};
 use shared::{requests::{RawRequest, RequestType}, responses::RawResponse, Byteable};
 
 const BUF_SIZE: usize = u16::MAX as usize;
 const TIMEOUT_MS: u64 = 50;
-const MAX_RETRIES: usize = 5;
+const MAX_RETRIES: usize = 10;
 
 /// Wraps a `UdpSocket` and provides (de)serialization and (if enabled) retries.
 pub struct SenderReceiver {
     socket: UdpSocket,
-    use_reliability: bool
+    rng: ThreadRng,
+    use_reliability: bool,
+    duplicate_packet_rate: f64
 }
 
 impl SenderReceiver {
     /// Create the `SenderReceiver`.
-    pub fn new(socket: UdpSocket, use_reliability: bool) -> Self {
+    pub fn new(socket: UdpSocket, use_reliability: bool, duplicate_packet_rate: f64) -> Self {
         socket
             .set_read_timeout(Some(Duration::from_millis(TIMEOUT_MS)))
             .expect("Should not have issues setting timeout");
         Self {
             socket,
-            use_reliability
+            rng: rand::rng(),
+            use_reliability,
+            duplicate_packet_rate
         }
     }
 
@@ -33,6 +38,13 @@ impl SenderReceiver {
                 self.socket
                     .send_to(&request_bytes, &addr)
                     .map_err(|err| format!("Error while sending request on retry {retry}: {err}"))?;
+
+                let roll = self.rng.random_range(0.0..1.0);
+                if roll < self.duplicate_packet_rate {
+                    println!("Intentionally duplicating packet...");
+                    continue;
+                }
+
                 match self.socket.recv_from(&mut recv_buffer) {
                     Ok(ok) => {
                         let response = RawResponse::from_bytes(&mut recv_buffer)?;
@@ -41,7 +53,9 @@ impl SenderReceiver {
                     Err(err) => {
                         if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock {
                             if retry < MAX_RETRIES-1 {
-                                let backoff = Duration::from_millis(TIMEOUT_MS * (retry as u64 + 1));
+                                let backoff_ms = TIMEOUT_MS * (retry as u64 + 1);
+                                let backoff = Duration::from_millis(backoff_ms);
+                                println!("Attempt {}: Failed to send packet; waiting {}ms before retrying", retry+1, backoff_ms);
                                 sleep(backoff);
                             }
                         }

@@ -1,4 +1,5 @@
 use std::net::{SocketAddr, UdpSocket};
+use rand::{rngs::ThreadRng, Rng};
 use shared::{requests::RawRequest, responses::RawResponse, Byteable};
 use crate::log::Log;
 
@@ -8,15 +9,19 @@ const BUF_SIZE: usize = u16::MAX as usize;
 pub struct SenderReceiver {
     socket: UdpSocket,
     log: Log,
-    use_reliability: bool
+    rng: ThreadRng,
+    use_reliability: bool,
+    packet_drop_rate: f64
 }
 
 impl SenderReceiver {
-    pub fn new(socket: UdpSocket, use_reliability: bool) -> Self {
+    pub fn new(socket: UdpSocket, use_reliability: bool, packet_drop_rate: f64) -> Self {
         Self {
             socket,
             log: Log::new(),
-            use_reliability
+            rng: rand::rng(),
+            use_reliability,
+            packet_drop_rate
         }
     }
 
@@ -33,8 +38,13 @@ impl SenderReceiver {
                 .recv_from(&mut buf)
                 .map_err(|err| format!("Failed to receive UDP data: {err}"))?;
 
-            let request = RawRequest::from_bytes(&mut buf)?;
+            let roll = self.rng.random_range(0.0..1.0);
+            if roll < self.packet_drop_rate {
+                tracing::debug!("Intentionally dropping a packet from {source_addr}...");
+                continue;
+            }
 
+            let request = RawRequest::from_bytes(&mut buf)?;
             tracing::trace!("Received following message from {source_addr}: {request:?}");
             
             if self.use_reliability {
