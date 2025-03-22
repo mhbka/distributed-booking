@@ -21,8 +21,13 @@ pub mod time;
 /// ## Derive
 /// If a struct's fields are all `Byteable`, you can use `ByteableDerive` to quickly get an implementation.
 pub trait Byteable where Self: Sized {
+    /// Deserialize the type from bytes in a Vec of bytes.
+    /// 
+    /// Errors if unable to.
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String>;
-
+    /// Deserializes the type to a Vec of bytes.
+    /// 
+    /// TODO: use `&mut Vec<u8>` here too for optimization?
     fn to_bytes(self) -> Vec<u8>;
 }
 

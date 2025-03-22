@@ -60,10 +60,10 @@ impl Facility {
     /// Remove the booking given by its ID.
     /// 
     /// Errors if the booking ID doesn't exist.
-    pub fn remove_booking(&mut self, booking_id: BookingId) -> Result<Booking, String> {
+    pub fn remove_booking(&mut self, booking_id: &BookingId) -> Result<Booking, String> {
         if let Some(pos) = self.bookings
             .iter()
-            .position(|(id, _)| id == &booking_id)
+            .position(|(id, _)| id == booking_id)
         {
             let booking = self.bookings.remove(pos);
             return Ok(booking.1);
@@ -121,7 +121,7 @@ impl Facility {
 
     /// Offset the booking by given hours and minutes.
     /// 
-    /// Errors if the booking ID doesn't exist, the offset'd booking overlaps with current ones, 
+    /// Errors if the booking ID doesn't exist, the offsetted booking overlaps with current ones, 
     /// or the offset pushes the booking into a different day.
     pub fn offset_booking(
         &mut self, 
@@ -131,22 +131,43 @@ impl Facility {
         negative: bool
     ) -> Result<(), String> 
     {
-        let booking = self.remove_booking(booking_id)?;
-
+        let booking = self.remove_booking(&booking_id)?;
         let mut offset_booking = booking.clone();
-        offset_booking.offset(hours, minutes, negative);
-
-        if offset_booking.start_time.day != booking.start_time.day
-        || offset_booking.end_time.day != booking.start_time.day {
+        
+        if let Err(err) = offset_booking.offset(hours, minutes, negative) {
             self.add_booking_with_id(booking_id, booking)?;
-            return Err("Offset pushes the booking into a different day; not allowed".to_string());
+            return Err(err);
         }
         else if let Err(err) = self.add_booking_with_id(booking_id, offset_booking) {
             self.add_booking_with_id(booking_id, booking)?;
             return Err(err);
         }
         Ok(())
-    } 
+    }
+
+    /// Extends the booking by offsetting the end time forward.
+    /// 
+    /// Errors if the booking ID doesn't exist, the extended booking overlaps with current ones,
+    /// or the extension pushes the booking into a different day.
+    pub fn extend_booking(
+        &mut self, 
+        booking_id: BookingId, 
+        hours: Hour, 
+        minutes: Minute, 
+    ) -> Result<(), String> {
+        let booking = self.remove_booking(&booking_id)?;
+        let mut extended_booking = booking.clone();
+
+        if let Err(err) = extended_booking.extend(hours, minutes) {
+            self.add_booking_with_id(booking_id, booking)?;
+            return Err(err);
+        }
+        else if let Err(err) = self.add_booking_with_id(booking_id, extended_booking) {
+            self.add_booking_with_id(booking_id, booking)?;
+            return Err(err);
+        }
+        Ok(())
+    }
 }
 
 /// The booking ID, which is just a Uuid (which is just 16 bytes).
@@ -189,13 +210,43 @@ impl Booking {
     }
 
     /// Offsets the booking by the given time. 
+    /// 
+    /// Errors if the offset pushes the booking into another day.
     pub fn offset(
         &mut self, 
         hours: Hour,
         minutes: Minute,
         negative: bool
-    ) {
+    ) -> Result<(), String> {
+        let cur_day = self.start_time.day.clone();
+
         self.start_time.offset(hours, minutes, negative);
         self.end_time.offset(hours, minutes, negative);
+
+        if self.start_time.day != cur_day || self.end_time.day != cur_day {
+            self.start_time.offset(hours, minutes, !negative);
+            self.end_time.offset(hours, minutes, !negative);
+            return Err("Offset pushes the booking into another day".into());
+        }
+
+        Ok(())
+    }
+
+    /// Extends the booking by the given time. 
+    /// 
+    /// Errors if the extension pushes the booking into another day.
+    pub fn extend(
+        &mut self, 
+        hours: Hour,
+        minutes: Minute,
+    ) -> Result<(), String> {
+        self.end_time.offset(hours, minutes, false);
+
+        if self.end_time.day != self.start_time.day {
+            self.end_time.offset(hours, minutes, true);
+            return Err("Offset pushes the booking into another day".into());
+        }
+
+        Ok(())
     }
 }

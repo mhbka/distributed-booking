@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use chrono::{DateTime, Duration, Utc};
-use shared::{requests::{AvailabilityRequest, BookRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType}, responses::RawResponse, time::Day, Byteable};
+use shared::{requests::{AvailabilityRequest, BookRequest, CancelBookingRequest, ExtendBookingRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType}, responses::RawResponse, time::Day, Byteable};
 use uuid::Uuid;
 use crate::{facilities::{Booking, Facility}, socket::SenderReceiver};
 
@@ -66,6 +66,12 @@ impl Handler {
             },
             RequestType::Offset(req) => {
                 self.handle_offset_request(req)
+            },
+            RequestType::Cancel(req) => {
+                self.handle_cancel_request(req)
+            },
+            RequestType::Extend(req) => {
+                self.handle_extend_request(req)
             },
             RequestType::Monitor(req) => {
                 self.handle_monitor_request(req, source_addr)
@@ -155,6 +161,44 @@ impl Handler {
             }
         }
         Err(format!("No booking ID {} found in any facility", req.booking_id))
+    }
+
+    /// Attempts to offset a booking.
+    /// 
+    /// If successful, also sends a message to monitoring addresses for updated availability on the offsetted day.
+    fn handle_extend_request(&mut self, req: ExtendBookingRequest) -> Result<String, String> {
+        for facility in &mut self.facilities {
+            if let Some((_, booking)) = facility.get_booking_details(&req.booking_id) {
+                let booking_day = booking.time().0.day;
+                let facility_name = facility.name.clone();
+
+                facility.extend_booking(
+                    req.booking_id, 
+                    req.extend_hours, 
+                    req.extend_min,
+                )?;
+
+                self.send_monitor_message(&facility_name, booking_day);
+                return Ok(format!("Facility {facility_name} successfully offsetted"));
+            }
+        }
+        Err(format!("No booking ID {} found in any facility", req.booking_id))
+    }
+
+    /// Attempts to cancel a booking.
+    fn handle_cancel_request(&mut self, req: CancelBookingRequest) -> Result<String, String> {
+        for facility in &mut self.facilities {
+            if let Some((_, booking)) = facility.get_booking_details(&req.booking_id) {
+                let booking_day = booking.time().0.day;
+                let facility_name= facility.name.clone();
+
+                facility.remove_booking(&req.booking_id)?;
+
+                self.send_monitor_message(&facility_name, booking_day);
+                return Ok(format!("Booking {} successfully cancelled", req.booking_id));
+            }
+        }
+        Err(format!("No booking with ID {} found", req.booking_id))
     }
 
     /// Attempts to register a monitoring address.

@@ -82,7 +82,7 @@ impl Time {
 
 impl Display for Time {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, {}:{}", self.day, self.hour.0, self.minute.0)
+        write!(f, "{}, {}:{}", self.day, self.hour, self.minute)
     }
 }
 
@@ -149,9 +149,7 @@ impl Hour {
         if hour >= 24 {
             return Err(format!("Got an invalid hour value: {hour}"));
         }
-        Ok(
-            Self(hour)
-        )
+        Ok(Self(hour))
     }
 }
 
@@ -163,6 +161,17 @@ impl Byteable for Hour {
 
     fn to_bytes(self) -> Vec<u8> {
         u8::to_bytes(self.0)
+    }
+}
+
+impl Display for Hour {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 < 10 {
+            return write!(f, "0{}", self.0);
+        } else {
+            return write!(f, "{}", self.0);
+        }
+        
     }
 }
 
@@ -205,6 +214,17 @@ impl Byteable for Minute {
 
     fn to_bytes(self) -> Vec<u8> {
         u8::to_bytes(self.0)
+    }
+}
+
+impl Display for Minute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 < 10 {
+            return write!(f, "0{}", self.0);
+        } else {
+            return write!(f, "{}", self.0);
+        }
+        
     }
 }
 

@@ -33,6 +33,20 @@ pub struct OffsetBookingRequest {
     pub negative: bool
 }
 
+/// For cancelling a booking.
+#[derive(ByteableDerive, Debug)]
+pub struct CancelBookingRequest {
+    pub booking_id: Uuid
+}
+
+/// For extending a booking.
+#[derive(ByteableDerive, Debug)]
+pub struct ExtendBookingRequest {
+    pub booking_id: Uuid,
+    pub extend_hours: Hour,
+    pub extend_min: Minute
+}
+
 /// For registering a monitor callback.
 #[derive(ByteableDerive, Debug)]
 pub struct MonitorFacilityRequest {
@@ -46,35 +60,42 @@ pub enum RequestType {
     Availability(AvailabilityRequest),
     Book(BookRequest),
     Offset(OffsetBookingRequest),
-    Monitor(MonitorFacilityRequest)
+    Monitor(MonitorFacilityRequest),
+    Cancel(CancelBookingRequest),
+    Extend(ExtendBookingRequest)
 }
 
 impl Byteable for RequestType {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
-        if data.len() >= 1 {
-            let discriminant = data.remove(0);
-            let val = match discriminant {
-                0 => {
-                    let request = AvailabilityRequest::from_bytes(data)?;
-                    Self::Availability(request)
-                },
-                1 => {
-                    let request = BookRequest::from_bytes(data)?;
-                    Self::Book(request)
-                },
-                2 => {
-                    let request = OffsetBookingRequest::from_bytes(data)?;
-                    Self::Offset(request)
-                },
-                3 => {
-                    let request = MonitorFacilityRequest::from_bytes(data)?;
-                    Self::Monitor(request)
-                },
-                other => Err(format!("Unsupported request type discriminant: {other}"))?
-            };
-            return Ok(val);
-        }
-        Err(format!("Not enough bytes (len: {})", data.len()))
+        let discriminant = u8::from_bytes(data)?;
+        let val = match discriminant {
+            0 => {  
+                let request = AvailabilityRequest::from_bytes(data)?;
+                Self::Availability(request)
+            },
+            1 => {
+                let request = BookRequest::from_bytes(data)?;
+                Self::Book(request)
+            },
+            2 => {
+                let request = OffsetBookingRequest::from_bytes(data)?;
+                Self::Offset(request)
+            },
+            3 => {
+                let request = MonitorFacilityRequest::from_bytes(data)?;
+                Self::Monitor(request)
+            },
+            4 => {
+                let request = CancelBookingRequest::from_bytes(data)?;
+                Self::Cancel(request)
+            },
+            5 => {
+                let request = ExtendBookingRequest::from_bytes(data)?;
+                Self::Extend(request)
+            }
+            other => Err(format!("Unsupported request type discriminant: {other}"))?
+        };
+        Ok(val)
     }
 
     fn to_bytes(self) -> Vec<u8> {
@@ -97,6 +118,16 @@ impl Byteable for RequestType {
             RequestType::Monitor(request) => {
                 let mut request_bytes = request.to_bytes();
                 request_bytes.insert(0, 3);
+                request_bytes
+            },
+            RequestType::Cancel(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 4);
+                request_bytes
+            },
+            RequestType::Extend(request) => {
+                let mut request_bytes = request.to_bytes();
+                request_bytes.insert(0, 5);
                 request_bytes
             },
         }
