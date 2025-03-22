@@ -20,19 +20,30 @@ impl Time {
         negative: bool
     ) {
         if negative {
-            let mut new_minute = self.minute.clone();
-            let mut new_hour = self.hour.clone();
+            // Handle negative offset
+            let mut new_minute = self.minute.0;
+            let mut new_hour = self.hour.0;
             let mut new_day = self.day.clone();
             
-            if self.minute.0 < minutes.0 {
-                new_minute = Minute((new_minute.0
-                     - minutes.0) % 60);
-                new_hour = Hour((new_hour.0 + 24 - 1) % 24);
+            // Handle minute subtraction
+            if new_minute < minutes.0 {
+                new_minute = new_minute + 60 - minutes.0;
+                new_hour = new_hour.checked_sub(1).unwrap_or(23);
             } else {
-                new_minute = Minute((new_minute.0 - minutes.0) % 60);
+                new_minute = new_minute - minutes.0;
             }
-            if self.hour.0 < hours.0 {
-                new_hour = Hour((new_hour.0 + 24 - hours.0) % 24);
+            
+            // Track days to subtract
+            let days_to_subtract = if new_hour < hours.0 {
+                new_hour = new_hour + 24 - hours.0;
+                1
+            } else {
+                new_hour = new_hour - hours.0;
+                0
+            };
+            
+            // Apply day change
+            for _ in 0..days_to_subtract {
                 new_day = match new_day {
                     Day::Monday => Day::Sunday,
                     Day::Tuesday => Day::Monday,
@@ -42,26 +53,31 @@ impl Time {
                     Day::Saturday => Day::Friday,
                     Day::Sunday => Day::Saturday,
                 };
-            } else {
-                new_hour = Hour((new_hour.0 - hours.0) % 24);
             }
-            self.minute = new_minute;
-            self.hour = new_hour;
+            
+            self.minute = Minute(new_minute);
+            self.hour = Hour(new_hour);
             self.day = new_day;
         }
         else {
-            let mut new_minute = self.minute.clone();
-            let mut new_hour = self.hour.clone();
+            // Handle positive offset
+            let mut new_minute = self.minute.0 + minutes.0;
+            let mut new_hour = self.hour.0;
             let mut new_day = self.day.clone();
             
-            new_minute = Minute((new_minute.0 + minutes.0) % 60);
-            if self.minute.0 + minutes.0 >= 60 {
-                new_hour = Hour((new_hour.0 + 1) % 24);
+            // Handle minute carry
+            if new_minute >= 60 {
+                new_hour = new_hour + 1;
+                new_minute = new_minute % 60;
             }
-        
-            let total_hours = new_hour.0 + hours.0;
-            new_hour = Hour(total_hours % 24);
-            if total_hours >= 24 {
+            
+            // Handle hour addition and carry
+            new_hour = new_hour + hours.0;
+            let days_to_add = new_hour / 24;
+            new_hour = new_hour % 24;
+            
+            // Apply day change
+            for _ in 0..days_to_add {
                 new_day = match new_day {
                     Day::Monday => Day::Tuesday,
                     Day::Tuesday => Day::Wednesday,
@@ -72,9 +88,9 @@ impl Time {
                     Day::Sunday => Day::Monday,
                 };
             }
-
-            self.minute = new_minute;
-            self.hour = new_hour;
+            
+            self.minute = Minute(new_minute);
+            self.hour = Hour(new_hour);
             self.day = new_day;
         }
     }

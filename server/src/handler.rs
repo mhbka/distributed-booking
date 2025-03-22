@@ -96,13 +96,13 @@ impl Handler {
         Ok(response)
     }
 
+    /// 
     fn handle_availability_request(&self, mut req: AvailabilityRequest) -> Result<String, String> {
         match self.facilities
             .iter()
             .find(|&facility| facility.name == req.facility_name)
         {
             Some(facility) => {
-                tracing::trace!("check this: {:?}", req.days);
                 req.days.sort();
                 req.days.dedup(); // in case >1 of the same day
                 let availabilities = req.days
@@ -162,7 +162,7 @@ impl Handler {
         Err(format!("No booking ID {} found in any facility", req.booking_id))
     }
 
-    /// Attempts to offset a booking.
+    /// Attempts to extend a booking.
     /// 
     /// If successful, also sends a message to monitoring addresses for updated availability on the offsetted day.
     fn handle_extend_request(&mut self, req: ExtendBookingRequest) -> Result<String, String> {
@@ -185,6 +185,8 @@ impl Handler {
     }
 
     /// Attempts to cancel a booking.
+    /// 
+    /// If successful, also sends a message to monitoring addresses for updated availability on the cancelled day.
     fn handle_cancel_request(&mut self, req: CancelBookingRequest) -> Result<String, String> {
         for facility in &mut self.facilities {
             if let Some((_, booking)) = facility.get_booking_details(&req.booking_id) {
@@ -230,14 +232,16 @@ impl Handler {
         facility_name: &String,
         updated_day: Day
     ) {
+        let old_len = self.monitoring_addresses.len();
         self.monitoring_addresses
-            .retain(|(_, _, expiry)| expiry < &Utc::now());
+            .retain(|(_, _, expiry)| expiry > &Utc::now());
+        tracing::trace!("Evicted {} expired monitoring addresses", old_len - self.monitoring_addresses.len());
 
         if let Some(facility) = self.facilities
             .iter()
             .find(|&f| &f.name == facility_name)
         {   
-            tracing::debug!("Sending monitor message for facility {facility_name}");
+            tracing::trace!("Sending monitor message for facility {facility_name}");
 
             let availabilities = facility.get_availabilities(updated_day);
             let monitoring_message = format!("-----\n A booking was updated on {updated_day}; new availabilities:\n {availabilities}\n -----");
@@ -247,13 +251,26 @@ impl Handler {
                 message: monitoring_message
             };
 
-            self.monitoring_addresses
-            .iter()
-            .filter(|(_, name, _)| name == facility_name)
-            .for_each(|(addr, facility_name, expiry)| {
-                self.sender_receiver.send(&response, &addr);
-                tracing::debug!("Sent {addr} a monitoring message for facility {facility_name} (expiry: {expiry})");
-            });
+            let relevant_addresses = self.monitoring_addresses
+                .iter()
+                .filter(|(_, name, _)| name == facility_name)
+                .collect::<Vec<_>>();
+
+            tracing::trace!("Found {} addresses monitoring MR1", relevant_addresses.len());
+
+            relevant_addresses
+                .iter()
+                .filter(|(_, name, _)| name == facility_name)
+                .for_each(|(addr, facility_name, expiry)| {
+                    match self.sender_receiver.send(&response, &addr) {
+                        Ok(ok) => {
+                            tracing::debug!("Sent {addr} a monitoring message for facility {facility_name} (expiry: {expiry})");
+                        },
+                        Err(err) => {
+                            tracing::warn!("Error while sending monitoring message to {addr}: {err}");
+                        }
+                    }
+                });
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::net::UdpSocket;
 use std::str::FromStr;
+use clap::{command, Parser};
 use shared::requests::{AvailabilityRequest, BookRequest, CancelBookingRequest, ExtendBookingRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType};
 use shared::time::{Day, Hour, Minute, Time};
 use socket::SenderReceiver;
@@ -8,24 +9,56 @@ use uuid::Uuid;
 
 mod socket;
 
-const USE_RELIABILITY: bool = true;
+/// The client for the project.
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// The address to bind to
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:34523"))]
+    addr: String,
+    /// The address of the server
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:34524"))]
+    server_addr: String,
+    /// Whether to enable retries
+    #[arg(short, long, default_value_t = true)]
+    use_reliability: bool
+}
 
 fn main() {
-    let socket = UdpSocket::bind("127.0.0.1:34523").unwrap();
-    let mut sender_receiver = SenderReceiver::new(socket, USE_RELIABILITY);
+    let args = Args::parse();
+    
+    println!("======================");
+    println!("Arguments: {args:#?}");
+    println!("======================");
+
+    let socket = UdpSocket::bind(args.addr).unwrap();
+    let mut sender_receiver = SenderReceiver::new(socket, args.use_reliability);
 
     loop {  
         let request = get_user_request();
         println!("Request created: {:?}", request);
-        match sender_receiver.send(request, "127.0.0.1:34524".into()) {
+
+        let seconds_to_monitor = if let RequestType::Monitor(req) = &request.request_type {
+            Some(req.seconds_to_monitor)
+        } else {
+            None
+        };
+
+        match sender_receiver.send(request, &args.server_addr) {
             Ok(response) => {
                 println!("--- Response ---");
                 println!("{}", response.message);
                 println!("----------------");
             }
             Err(err) => {
-                println!("Error while messaging the server: {}", err);
+                println!("---- Error ----");
+                println!("{err}");
+                println!("---------------");
             }
+        }
+
+        if let Some(seconds) = seconds_to_monitor {
+            sender_receiver.monitor(&args.server_addr, seconds);
         }
     }
     
@@ -46,7 +79,7 @@ fn get_user_request() -> RawRequest {
 }
 
 fn get_request_type() -> RequestType {
-    println!("\nPlease select a request type:");
+    println!("Please select a request type:");
     println!("1. Check facility availability");
     println!("2. Book a facility");
     println!("3. Offset an existing booking");

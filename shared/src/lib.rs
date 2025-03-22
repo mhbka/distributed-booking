@@ -37,7 +37,7 @@ impl Byteable for bool {
     /// From a single `u8` where `0` is `false` and everything else is `true`.
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 1 {
-            return Ok(data.remove(0) == 0);
+            return Ok(data.remove(0) >= 1);
         }
         Err("0 bytes found".to_string())
     }

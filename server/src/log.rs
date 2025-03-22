@@ -15,18 +15,20 @@ impl Log {
         }
     }
 
-    /// Returns the last response's data for an address.
+    /// Returns the last response's data for a request.
     /// 
-    /// Returns `None` if the request ID doesn't match.
+    /// Returns `None` if the request wasn't found.
     pub fn check(&mut self, request_id: &Uuid) -> Option<&Vec<u8>> {
         self.log
-        .iter()
-        .find(|(id, _)| id == request_id)
-        .map(|(_, response)| response)
+            .iter()
+            .find(|(id, _)| id == request_id)
+            .map(|(_, response)| response)
     }
 
     /// Inserts a response under the request ID.
-    pub fn insert_entry(&mut self, request_id: &Uuid, response: &Vec<u8>) {
+    /// 
+    /// Pops the oldest record if the log has reached capacity.
+    pub fn insert(&mut self, request_id: &Uuid, response: &Vec<u8>) {
         if self.log.len() >= MAX_LOG_LENGTH {
             self.log.pop_front();
         }

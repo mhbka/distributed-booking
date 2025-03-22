@@ -4,7 +4,6 @@ use crate::log::Log;
 
 const BUF_SIZE: usize = u16::MAX as usize;
 
-
 /// Wraps the `UdpSocket` and provides serialization and logging mechanisms.
 pub struct SenderReceiver {
     socket: UdpSocket,
@@ -35,6 +34,8 @@ impl SenderReceiver {
                 .map_err(|err| format!("Failed to receive UDP data: {err}"))?;
 
             let request = RawRequest::from_bytes(&mut buf)?;
+
+            tracing::trace!("Received following message from {source_addr}: {request:?}");
             
             if self.use_reliability {
                 match self.log.check(&request.request_id) {
@@ -65,14 +66,22 @@ impl SenderReceiver {
 
         if self.use_reliability {
             let id = response.request_id.clone();
-            self.log.insert_entry(&id, &response_bytes);
+            self.log.insert(&id, &response_bytes);
         }   
 
-        self.socket
+        match self.socket
             .send_to(&response_bytes, addr)
             .map(|bytes| ())
-            .map_err(|err| 
-                format!("Unable to send UDP message: {err}")
-            )
+            .map_err(|err| format!("Unable to send UDP message: {err}"))
+        {
+            Ok(ok) => {
+                tracing::debug!("Successfully sent following message to {addr}: {response:?}");
+                Ok(())
+            },
+            Err(err) => {
+                tracing::warn!("Error while sending message to {addr}: {err}");
+                Err(err)
+            }
+        }
     }
 }
