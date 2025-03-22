@@ -39,10 +39,10 @@ impl Handler {
                         Ok(res) => {
                             match self.sender_receiver.send(&res, &source_addr) {
                                 Ok(ok) => {
-                                    tracing::debug!("Successfully sent response to {} (length: {})", source_addr, res.len());
+                                    tracing::debug!("Successfully sent response to {}", source_addr);
                                 },
                                 Err(err) => {
-                                    tracing::warn!("Error sending response to {}: {} (length: {})", source_addr, err, res.len());
+                                    tracing::warn!("Error sending response to {}: {}", source_addr, err);
                                 }
                             }
                         },
@@ -55,7 +55,7 @@ impl Handler {
     }
 
     /// Handles a message, returning the response as bytes.
-    pub fn handle_message(&mut self, req: RawRequest, source_addr: &SocketAddr) -> Result<Vec<u8>, String> 
+    pub fn handle_message(&mut self, req: RawRequest, source_addr: &SocketAddr) -> Result<RawResponse, String> 
     {
         let result = match req.request_type {
             RequestType::Availability(req) => {
@@ -77,24 +77,23 @@ impl Handler {
                 self.handle_monitor_request(req, source_addr)
             },
         };
-        match result {
-            Ok(res) => {
-                let response = RawResponse {
+        let response = match result {
+            Ok(message) => {
+                RawResponse {
                     request_id: req.request_id,
                     is_error: false,
-                    message: res
-                };
-                return Ok(response.to_bytes());
+                    message
+                }
             },
-            Err(res) => {
-                let response = RawResponse {
+            Err(err) => {
+                RawResponse {
                     request_id: req.request_id,
                     is_error: true,
-                    message: res
-                };
-                return Ok(response.to_bytes());
+                    message: err
+                }
             }
-        }
+        };
+        Ok(response)
     }
 
     fn handle_availability_request(&self, mut req: AvailabilityRequest) -> Result<String, String> {
@@ -246,7 +245,7 @@ impl Handler {
                 request_id: Uuid::new_v4(), // doesn't really matter I think
                 is_error: false,
                 message: monitoring_message
-            }.to_bytes();
+            };
 
             self.monitoring_addresses
             .iter()

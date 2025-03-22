@@ -5,8 +5,10 @@ use tracing::Level;
 
 mod facilities;
 mod handler;
-mod duplicates;
+mod log;
 mod socket;
+
+const USE_RELIABILITY: bool = true;
 
 fn main() {
     tracing_subscriber::fmt()
@@ -14,7 +16,7 @@ fn main() {
         .init();
 
     let socket = UdpSocket::bind("127.0.0.1:34524").unwrap();
-    let sender_receiver = SenderReceiver::new(socket);
+    let sender_receiver = SenderReceiver::new(socket, USE_RELIABILITY);
     let mut handler = Handler::new(sender_receiver);
 
     handler.run();

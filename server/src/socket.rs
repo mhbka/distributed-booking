@@ -1,26 +1,29 @@
 use std::net::{SocketAddr, UdpSocket};
-use shared::{requests::RawRequest, Byteable};
-use crate::duplicates::DuplicatesCache;
+use shared::{requests::RawRequest, responses::RawResponse, Byteable};
+use crate::log::Log;
 
 const BUF_SIZE: usize = u16::MAX as usize;
 
-/// Wraps the `UdpSocket` and provides serialization and caching/retry mechanisms.
+
+/// Wraps the `UdpSocket` and provides serialization and logging mechanisms.
 pub struct SenderReceiver {
     socket: UdpSocket,
-    cache: DuplicatesCache
+    log: Log,
+    use_reliability: bool
 }
 
 impl SenderReceiver {
-    pub fn new(socket: UdpSocket) -> Self {
+    pub fn new(socket: UdpSocket, use_reliability: bool) -> Self {
         Self {
             socket,
-            cache: DuplicatesCache::new()
+            log: Log::new(),
+            use_reliability
         }
     }
 
     /// Attempt to receive a request from the socket.
     /// 
-    /// If the request's ID and address is found in cache, the cached response is sent back
+    /// If the request's ID and address is found in log, the logd response is sent back
     /// and the function waits for the next message instead.
     /// 
     /// Errors if there's an issue receiving the message or decoding it into a `RawRequest`.
@@ -33,27 +36,43 @@ impl SenderReceiver {
 
             let request = RawRequest::from_bytes(&mut buf)?;
             
-            match self.cache.check(&source_addr, &request.request_id) {
-                Some(response) => {
-                    tracing::debug!("Found cached response for {}, request ID: {}", source_addr, request.request_id);
-                    self.socket.send_to(&response, source_addr);
-                    // TODO: retry/timeout
-                },
-                None => {
-                    tracing::debug!("No cached response for {}, request ID: {}; returning with request", source_addr, request.request_id);
-                    return Ok((request, source_addr));
+            if self.use_reliability {
+                match self.log.check(&request.request_id) {
+                    Some(response) => {
+                        tracing::debug!("Found logged response for {}, request ID: {}", source_addr, request.request_id);
+                        if let Err(err) = self.socket.send_to(&response, source_addr) {
+                            tracing::warn!("Unable to send UDP message for logged response: {err}");
+                        };
+                    },
+                    None => {
+                        tracing::debug!("No logged response for {}, request ID: {}; returning with request", source_addr, request.request_id);
+                        return Ok((request, source_addr));
+                    }
                 }
+            }
+            else {
+                tracing::debug!("Logging turned off; returning with request for {}, request ID: {}", source_addr, request.request_id);
+                return Ok((request, source_addr));
             }
         }
     }
 
     /// Sends the response to the given address.
-    pub fn send(&mut self, response: &Vec<u8>, addr: &SocketAddr) -> Result<(), String> {
-        tracing::trace!("Sending response with length {} to address {}", response.len(), addr);
+    /// 
+    /// If enabled, also adds the response to the internal log.
+    pub fn send(&mut self, response: &RawResponse, addr: &SocketAddr) -> Result<(), String> {
+        let response_bytes = response.clone().to_bytes();
+
+        if self.use_reliability {
+            let id = response.request_id.clone();
+            self.log.insert_entry(&id, &response_bytes);
+        }   
+
         self.socket
-            .send_to(response, addr)
+            .send_to(&response_bytes, addr)
             .map(|bytes| ())
-            .map_err(|err| format!("Unable to send UDP message: {err}"))
-        // TODO: retry/timeout here
+            .map_err(|err| 
+                format!("Unable to send UDP message: {err}")
+            )
     }
 }

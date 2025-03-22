@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::{Add, Sub}};
+use std::{fmt::Display, num::ParseIntError, ops::{Add, Sub}, str::FromStr};
 use derive::ByteableDerive;
 use strum::{Display, EnumIter};
 use crate::Byteable;
@@ -129,6 +129,24 @@ impl Day {
     }
 }
 
+
+impl FromStr for Day {
+    type Err = ();
+    
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mon" | "monday" => Ok(Day::Monday),
+            "tue" | "tuesday" => Ok(Day::Tuesday),
+            "wed" | "wednesday" => Ok(Day::Wednesday),
+            "thu" | "thursday" => Ok(Day::Thursday),
+            "fri" | "friday" => Ok(Day::Friday),
+            "sat" | "saturday" => Ok(Day::Saturday),
+            "sun" | "sunday" => Ok(Day::Sunday),
+            _ => Err(()),
+        }
+    }
+}
+
 impl Byteable for Day {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> where Self: Sized {
         let val = u8::from_bytes(data)?;
@@ -172,6 +190,16 @@ impl Display for Hour {
             return write!(f, "{}", self.0);
         }
         
+    }
+}
+
+impl FromStr for Hour {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let val = u8::from_str(s)
+            .map_err(|err| err.to_string())?;
+        Self::new(val)
     }
 }
 
@@ -225,6 +253,16 @@ impl Display for Minute {
             return write!(f, "{}", self.0);
         }
         
+    }
+}
+
+impl FromStr for Minute {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let val = u8::from_str(s)
+            .map_err(|err| err.to_string())?;
+        Self::new(val)
     }
 }
 

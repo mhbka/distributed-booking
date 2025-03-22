@@ -23,7 +23,7 @@ impl Facility {
             .iter()
             .any(|(_, booking)| booking.overlaps(&new_booking))
         {
-            return Err(format!("New booking ({new_booking:?}) overlaps with at least 1 current booking"));
+            return Err("New booking overlaps with at least 1 current booking".into());
         }
         let new_id = Uuid::new_v4();
         self.bookings.push((new_id.clone(), new_booking));
@@ -113,7 +113,7 @@ impl Facility {
         let mut result = String::new();
         
         for (i, (start, end)) in open_slots.iter().enumerate() {
-            result.push_str(&format!("{}. {} - {}", i + 1, start, end));
+            result.push_str(&format!("{}. {} - {}\n", i + 1, start, end));
         }
         
         result
@@ -191,7 +191,7 @@ impl Booking {
             return Err(format!("Start time ({start_time:?}) is equal or after end time ({end_time:?})"));
         }
         if start_time.day != end_time.day {
-            return Err(format!("Start time day {} must match end time day {}", start_time.day, end_time.day));
+            return Err(format!("Start time day ({}) must match end time day ({})", start_time.day, end_time.day));
         }
         Ok(
             Self { start_time, end_time }

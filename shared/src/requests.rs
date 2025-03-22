@@ -3,21 +3,21 @@ use crate::{time::{Day, Hour, Minute, Time}, Byteable};
 use derive::ByteableDerive;
 
 /// Structure of a raw request to the server.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct RawRequest {
     pub request_id: Uuid,
     pub request_type: RequestType,
 }
 
 /// For requesting facility availability.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct AvailabilityRequest {
     pub facility_name: String,
     pub days: Vec<Day>
 }
 
 /// For booking a facility.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct BookRequest {
     pub facility_name: String,
     pub start_time: Time,
@@ -25,7 +25,7 @@ pub struct BookRequest {
 }
 
 /// For modifying a booking.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct OffsetBookingRequest {
     pub booking_id: Uuid,
     pub offset_hours: Hour,
@@ -34,13 +34,13 @@ pub struct OffsetBookingRequest {
 }
 
 /// For cancelling a booking.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct CancelBookingRequest {
     pub booking_id: Uuid
 }
 
 /// For extending a booking.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct ExtendBookingRequest {
     pub booking_id: Uuid,
     pub extend_hours: Hour,
@@ -48,14 +48,14 @@ pub struct ExtendBookingRequest {
 }
 
 /// For registering a monitor callback.
-#[derive(ByteableDerive, Debug)]
+#[derive(ByteableDerive, Debug, Clone)]
 pub struct MonitorFacilityRequest {
     pub facility_name: String,
     pub seconds_to_monitor: u8
 }
 
 /// The possible requests to the server.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RequestType {
     Availability(AvailabilityRequest),
     Book(BookRequest),

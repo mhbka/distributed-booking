@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use uuid::Uuid;
 
 pub mod requests;
@@ -84,13 +86,13 @@ impl Byteable for u16 {
 impl Byteable for Uuid {
     fn from_bytes(data: &mut Vec<u8>) -> Result<Self, String> {
         if data.len() >= 16 {
-            let uuid_bytes = data
+            let bytes = data
                 .drain(..16)
                 .collect::<Vec<_>>()
                 .try_into()
                 .map_err(|err| "Somehow got an error though enough bytes".to_string())?;
             return Ok(
-                Uuid::from_bytes(uuid_bytes)
+                Uuid::from_bytes(bytes)
             );
         }
         Err(format!("Not enough bytes (len: {})", data.len()))
