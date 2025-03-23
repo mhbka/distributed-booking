@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use uuid::Uuid;
 
 pub mod requests;

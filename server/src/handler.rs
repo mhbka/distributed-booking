@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use chrono::{DateTime, Duration, Utc};
-use shared::{requests::{AvailabilityRequest, BookRequest, CancelBookingRequest, ExtendBookingRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType}, responses::RawResponse, time::Day, Byteable};
+use shared::{requests::{AvailabilityRequest, BookRequest, CancelBookingRequest, ExtendBookingRequest, MonitorFacilityRequest, OffsetBookingRequest, RawRequest, RequestType}, responses::RawResponse, time::Day};
 use uuid::Uuid;
 use crate::{facilities::{Booking, Facility}, socket::SenderReceiver};
 

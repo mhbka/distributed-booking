@@ -1,6 +1,6 @@
 use std::{io::ErrorKind, net::UdpSocket, thread::sleep, time::{Duration, SystemTime}};
 use rand::{rngs::ThreadRng, Rng};
-use shared::{requests::{RawRequest, RequestType}, responses::RawResponse, Byteable};
+use shared::{requests::RawRequest, responses::RawResponse, Byteable};
 
 const BUF_SIZE: usize = u16::MAX as usize;
 const TIMEOUT_MS: u64 = 50;

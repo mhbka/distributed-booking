@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, VecDeque}, net::SocketAddr};
+use std::collections::VecDeque;
 use uuid::Uuid;
 
 const MAX_LOG_LENGTH: usize = 50;

@@ -1,4 +1,4 @@
-use std::{fmt::Display, num::ParseIntError, ops::{Add, Sub}, str::FromStr};
+use std::{fmt::Display, ops::{Add, Sub}, str::FromStr};
 use derive::ByteableDerive;
 use strum::{Display, EnumIter};
 use crate::Byteable;
