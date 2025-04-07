@@ -3,7 +3,9 @@ This is the project for NTU's SC4051 Distributed Systems.
 The objective is to implement a facilities booking system based on client-server architecture, using UDP sockets.
 
 ## Running
-You need Rust installed.
+If you're on Windows, the executables are found in `/bin`. You can see the below commands for help/arguments.
+
+Otherwise, to compile them, you need Rust installed.
 
 ### Server
 ```Powershell
