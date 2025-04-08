@@ -3,7 +3,7 @@ use rand::{rngs::ThreadRng, Rng};
 use shared::{requests::RawRequest, responses::RawResponse, Byteable};
 
 const BUF_SIZE: usize = u16::MAX as usize;
-const TIMEOUT_MS: u64 = 50;
+const TIMEOUT_MS: u64 = 500;
 const MAX_RETRIES: usize = 10;
 
 /// Wraps a `UdpSocket` and provides (de)serialization and (if enabled) retries.
@@ -37,7 +37,7 @@ impl SenderReceiver {
             for retry in 0..MAX_RETRIES {
                 self.socket
                     .send_to(&request_bytes, &addr)
-                    .map_err(|err| format!("Error while sending request on retry {retry}: {err}"))?;
+                    .map_err(|err| format!("Error while sending request on retry {retry}: {err} (source: {:?})", err.source()))?;
 
                 let roll = self.rng.random_range(0.0..1.0);
                 if roll < self.duplicate_packet_rate {
@@ -60,7 +60,7 @@ impl SenderReceiver {
                             }
                         }
                         else {
-                            return Err(format!("Got a non-timeout error while receiving message: {err}"));
+                            return Err(format!("Got a non-timeout error while receiving message: {err} (source: {:?})", err.source()));
                         }
                     }
                 }
@@ -70,14 +70,14 @@ impl SenderReceiver {
         else {
             self.socket
                 .send_to(&request_bytes, addr)
-                .map_err(|err| format!("Error while sending request: {err} ({:?})", err.source()))?;
+                .map_err(|err| format!("Error while sending request: {err} (source: {:?})", err.source()))?;
             match self.socket.recv(&mut recv_buffer) {
                 Ok(ok) => {
                     let response = RawResponse::from_bytes(&mut recv_buffer)?;
                     return Ok(response);
                 },
                 Err(err) => {
-                    return Err(format!("Got an error while receiving message: {err}"));
+                    return Err(format!("Got an error while receiving message: {err}, (source: {:?})", err.source()));
                 }
             }
         }
