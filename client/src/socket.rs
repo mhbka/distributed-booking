@@ -1,4 +1,4 @@
-use std::{io::ErrorKind, net::UdpSocket, thread::sleep, time::{Duration, SystemTime}};
+use std::{error::Error, io::ErrorKind, net::UdpSocket, thread::sleep, time::{Duration, SystemTime}};
 use rand::{rngs::ThreadRng, Rng};
 use shared::{requests::RawRequest, responses::RawResponse, Byteable};
 
@@ -70,7 +70,7 @@ impl SenderReceiver {
         else {
             self.socket
                 .send_to(&request_bytes, addr)
-                .map_err(|err| format!("Error while sending request: {err}"))?;
+                .map_err(|err| format!("Error while sending request: {err} ({:?})", err.source()))?;
             match self.socket.recv(&mut recv_buffer) {
                 Ok(ok) => {
                     let response = RawResponse::from_bytes(&mut recv_buffer)?;
