@@ -30,6 +30,7 @@ impl SenderReceiver {
 
     /// Send a message and receive a response.
     pub fn send(&mut self, request: RawRequest, addr: &String) -> Result<RawResponse, String> {
+        let request_id = request.request_id;
         let request_bytes = request.to_bytes();
         let mut recv_buffer = vec![0; BUF_SIZE];
 
@@ -44,23 +45,31 @@ impl SenderReceiver {
                     println!("Intentionally duplicating packet...");
                     continue;
                 }
+                
+                loop {
+                    match self.socket.recv_from(&mut recv_buffer) {
+                        Ok(ok) => {
+                            let response = RawResponse::from_bytes(&mut recv_buffer)?;
 
-                match self.socket.recv_from(&mut recv_buffer) {
-                    Ok(ok) => {
-                        let response = RawResponse::from_bytes(&mut recv_buffer)?;
-                        return Ok(response);
-                    },
-                    Err(err) => {
-                        if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock {
-                            if retry < MAX_RETRIES-1 {
-                                let backoff_ms = TIMEOUT_MS * (retry as u64 + 1);
-                                let backoff = Duration::from_millis(backoff_ms);
-                                println!("Attempt {}: Failed to send packet; waiting {}ms before retrying", retry+1, backoff_ms);
-                                sleep(backoff);
+                            if response.request_id != request_id {
+                                println!("Response ID {} doesn't match request ID {}; continuing...", response.request_id, request_id);
+                                continue;
                             }
-                        }
-                        else {
-                            return Err(format!("Got a non-timeout error while receiving message: {err} (source: {:?})", err.source()));
+
+                            return Ok(response);
+                        },
+                        Err(err) => {
+                            if err.kind() == ErrorKind::TimedOut || err.kind() == ErrorKind::WouldBlock {
+                                if retry < MAX_RETRIES-1 {
+                                    let backoff_ms = TIMEOUT_MS * (retry as u64 + 1);
+                                    let backoff = Duration::from_millis(backoff_ms);
+                                    println!("Attempt {}: Failed to send packet; waiting {}ms before retrying", retry+1, backoff_ms);
+                                    sleep(backoff);
+                                }
+                            }
+                            else {
+                                return Err(format!("Got a non-timeout error while receiving message: {err} (source: {:?})", err.source()));
+                            }
                         }
                     }
                 }
