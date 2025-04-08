@@ -14,10 +14,10 @@ mod socket;
 #[command(version, about, long_about = None)]
 struct Args {
     /// The address to bind to
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:34523"))]
+    #[arg(short, long, default_value_t = String::from("0.0.0.0:34523"))]
     addr: String,
     /// The address of the server
-    #[arg(short, long, default_value_t = String::from("127.0.0.1:34524"))]
+    #[arg(short, long, default_value_t = String::from("0.0.0.0:34524"))]
     server_addr: String,
     /// Whether to enable retries (DEFAULTS TO FALSE)
     #[arg(short, long)]
